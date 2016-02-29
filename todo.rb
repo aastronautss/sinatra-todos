@@ -26,6 +26,7 @@ get "/lists" do
   erb :lists, layout: :layout
 end
 
+# Display a page to create a new list.
 get '/lists/new' do
   erb :new_list, layout: :layout
 end
@@ -54,41 +55,57 @@ post '/lists' do
   end
 end
 
+# Display a todo list
 get '/lists/:list_id' do
-  @list = @lists[params[:list_id].to_i]
+  @list_id = params[:list_id]
+  @list = @lists[@list_id.to_i]
   erb :todos, layout: :layout
 end
 
 def error_for_todo_name(name)
   if !(1..100).cover? name.size
     "Todo item must be between 1 and 100 characters."
-  elsif @list[:todos].any? { |todo| todo == name }
-    "Todo item must be unique."
   end
 end
 
+# Add a new todo to a list
 post '/lists/:list_id/todos' do
   todo_name = params[:todo_name].strip
-  @list = @lists[params[:list_id].to_i]
+  @list_id = params[:list_id]
+  @list = @lists[@list_id.to_i]
+
   error = error_for_todo_name(todo_name)
 
   if error
     session[:error] = error
     erb :todos, layout: :layout
   else
-    @list[:todos] << params[:todo_name]
+    @list[:todos] << { name: todo_name, done: false }
     session[:success] = 'The todo item has been created.'
-    erb :todos, layout: :layout
+    redirect "/lists/#{@list_id}"
   end
 end
 
+post '/lists/:list_id/todos/:todo_id/destroy' do
+  @list_id = params[:list_id]
+  @todo_id = params[:todo_id]
+  @lists[@list_id.to_i][:todos].delete_at @todo_id.to_i
+
+  session[:success] = "The todo item has been deleted."
+  redirect "/lists/#{@list_id}"
+end
+
+# Display a page to edit a list
 get '/lists/:list_id/edit' do
-  @list = @lists[params[:list_id].to_i]
+  @list_id = params[:list_id]
+  @list = @lists[@list_id.to_i]
   erb :edit_list, layout: :layout
 end
 
+# Change the name of a list
 post '/lists/:list_id/edit' do
-  @list = @lists[params[:list_id].to_i]
+  @list_id = params[:list_id]
+  @list = @lists[@list_id.to_i]
   list_name = params[:list_name].strip
   error = error_for_list_name(list_name)
 
@@ -98,12 +115,14 @@ post '/lists/:list_id/edit' do
   else
     @list[:name] = list_name
     session[:success] = "The list has been updated."
-    redirect "/lists/#{params[:list_id]}"
+    redirect "/lists/#{@list_id}"
   end
 end
 
+# Delete a list
 post '/lists/:list_id/destroy' do
-  @lists.delete_at params[:list_id].to_i
+  @list_id = params[:list_id]
+  @lists.delete_at @list_id.to_i
   session[:success] = "The list has been deleted."
   redirect '/lists'
 end
