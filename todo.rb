@@ -3,6 +3,8 @@ require "sinatra/reloader"
 require 'sinatra/content_for'
 require "tilt/erubis"
 
+require 'pry'
+
 configure do
   enable :sessions
   set :session_secret, 'secret'
@@ -86,6 +88,16 @@ post '/lists/:list_id/todos' do
   end
 end
 
+post '/lists/:list_id/todos/:todo_id/check' do
+  @list_id = params[:list_id]
+  @todo_id = params[:todo_id]
+  @todo = @lists[@list_id.to_i][:todos][@todo_id.to_i]
+
+  @todo[:done] = (params[:completed] == 'true' ? true : false)
+  redirect "/lists/#{@list_id}"
+end
+
+# Delete a todo from a list
 post '/lists/:list_id/todos/:todo_id/destroy' do
   @list_id = params[:list_id]
   @todo_id = params[:todo_id]
