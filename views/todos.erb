@@ -1,0 +1,38 @@
+<div id="todos">
+  <header>
+    <h2><%= @list[:name] %></h2>
+
+    <ul>
+      <li>
+        <a class="edit" href="/lists/<%= params[:list_id] %>/edit">
+          Edit this list
+        </a>
+      </li>
+    </ul>
+  </header>
+  <ul>
+    <% @list[:todos].each do |todo| %>
+      <li>
+       <%= todo %>
+      </li>
+    <% end %>
+  </ul>
+</div>
+
+<% content_for :header_links do %>
+  <a href="/lists">All lists</a>
+<% end %>
+
+<form action="/lists/<%= params[:list_id] %>/todos" method="post">
+  <dl>
+    <dt>
+      <label for="todo_name">Create a new Todo item:</label>
+    </dt>
+    <dd>
+      <input name="todo_name" placeholder="Something to do" type="text" value="">
+    </dd>
+  </dl>
+  <fieldset class="actions">
+    <input type="submit" value="Add">
+  </fieldset>
+</form>
