@@ -6,6 +6,7 @@ require "tilt/erubis"
 configure do
   enable :sessions
   set :session_secret, 'secret'
+  set :erb, :escape_html => true
 end
 
 helpers do
@@ -48,6 +49,15 @@ helpers do
   end
 end
 
+def load_list(index)
+  list = session[:lists][index] if index
+  return list if list
+
+  session[:error] = "The specified list was not found."
+  redirect "/lists"
+  halt
+end
+
 before do
   session[:lists] ||= []
   @lists = session[:lists]
@@ -75,6 +85,10 @@ def error_for_list_name(name)
   end
 end
 
+def ajax_request?
+  env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
+end
+
 # Create a new list.
 post '/lists' do
   list_name = params[:list_name].strip
@@ -92,7 +106,9 @@ end
 
 # Mark all todos as complete
 post '/lists/:list_id/complete_all' do
-  @list = @lists[params[:list_id].to_i]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
   @list[:todos].each do |todo|
     todo[:done] = true
   end
@@ -103,8 +119,9 @@ end
 
 # Display a todo list
 get '/lists/:list_id' do
-  @list_id = params[:list_id]
-  @list = @lists[@list_id.to_i]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
   erb :todos, layout: :layout
 end
 
@@ -117,8 +134,8 @@ end
 # Add a new todo to a list
 post '/lists/:list_id/todos' do
   todo_name = params[:todo_name].strip
-  @list_id = params[:list_id]
-  @list = @lists[@list_id.to_i]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
 
   error = error_for_todo_name(todo_name)
 
@@ -134,9 +151,10 @@ end
 
 # Update the status of a todo
 post '/lists/:list_id/todos/:todo_id' do
-  @list_id = params[:list_id]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
   @todo_id = params[:todo_id]
-  @todo = @lists[@list_id.to_i][:todos][@todo_id.to_i]
+  @todo = @list[:todos][@todo_id.to_i]
 
   @todo[:done] = params[:completed] == 'true'
   session[:success] = "The todo has been updated."
@@ -145,25 +163,30 @@ end
 
 # Delete a todo from a list
 post '/lists/:list_id/todos/:todo_id/destroy' do
-  @list_id = params[:list_id]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
   @todo_id = params[:todo_id]
-  @lists[@list_id.to_i][:todos].delete_at @todo_id.to_i
+  @list[:todos].delete_at @todo_id.to_i
 
-  session[:success] = "The todo item has been deleted."
-  redirect "/lists/#{@list_id}"
+  if ajax_request?
+    status 204
+  else
+    session[:success] = "The todo item has been deleted."
+    redirect "/lists/#{@list_id}"
+  end
 end
 
 # Display a page to edit a list
 get '/lists/:list_id/edit' do
-  @list_id = params[:list_id]
-  @list = @lists[@list_id.to_i]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
   erb :edit_list, layout: :layout
 end
 
 # Change the name of a list
 post '/lists/:list_id/edit' do
-  @list_id = params[:list_id]
-  @list = @lists[@list_id.to_i]
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
   list_name = params[:list_name].strip
   error = error_for_list_name(list_name)
 
@@ -179,8 +202,12 @@ end
 
 # Delete a list
 post '/lists/:list_id/destroy' do
-  @list_id = params[:list_id]
-  @lists.delete_at @list_id.to_i
-  session[:success] = "The list has been deleted."
-  redirect '/lists'
+  @list_id = params[:list_id].to_i
+  @lists.delete_at @list_id
+  if ajax_request?
+    '/lists'
+  else
+    session[:success] = "The list has been deleted."
+    redirect '/lists'
+  end
 end
