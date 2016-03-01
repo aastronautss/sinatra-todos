@@ -1,8 +1,13 @@
-<div id="todos">
+<section id="todos" class="<%= list_class @list %>">
   <header>
     <h2><%= @list[:name] %></h2>
 
     <ul>
+      <li>
+        <form action="/lists/<%= @list_id %>/complete_all" method="post">
+          <button class="check" type="submit">Complete all</button>
+        </form>
+      </li>
       <li>
         <a class="edit" href="/lists/<%= @list_id %>/edit">
           Edit this list
@@ -11,9 +16,9 @@
     </ul>
   </header>
   <ul>
-    <% @list[:todos].each_with_index do |todo, index| %>
+    <% sort_todos(@list[:todos]) do |todo, index| %>
       <li class="<%= todo[:done] ? 'complete' : '' %>">
-        <form action="/lists/<%= @list_id %>/todos/<%= index %>/check" method="post" class="check">
+        <form action="/lists/<%= @list_id %>/todos/<%= index %>" method="post" class="check">
           <input type="hidden" name="completed" value="<%= !todo[:done] %>" />
           <button type="submit">Complete</button>
         </form>
@@ -26,7 +31,7 @@
       </li>
     <% end %>
   </ul>
-</div>
+</section>
 
 <form action="/lists/<%= @list_id %>/todos" method="post">
   <dl>

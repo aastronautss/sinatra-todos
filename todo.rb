@@ -3,11 +3,49 @@ require "sinatra/reloader"
 require 'sinatra/content_for'
 require "tilt/erubis"
 
-require 'pry'
-
 configure do
   enable :sessions
   set :session_secret, 'secret'
+end
+
+helpers do
+  def list_class(list)
+    "complete" if all_complete? list
+  end
+
+  def all_complete?(list)
+    total_todos(list) > 0 && number_incomplete(list) <= 0
+  end
+
+  def todo_complete?(todo)
+    todo[:done]
+  end
+
+  def total_todos(list)
+    list[:todos].size
+  end
+
+  def number_incomplete(list)
+    list[:todos].select { |todo| !todo[:done] }.size
+  end
+
+  def sort_lists(lists)
+    complete_lists, incomplete_lists = lists.partition do |list|
+      all_complete? list
+    end
+
+    incomplete_lists.each { |list| yield list, lists.index(list) }
+    complete_lists.each { |list| yield list, lists.index(list) }
+  end
+
+  def sort_todos(todos, &block)
+    complete_todos, incomplete_todos = todos.partition do |todo|
+      todo_complete? todo
+    end
+
+    incomplete_todos.each { |todo| yield todo, todos.index(todo) }
+    complete_todos.each { |todo| yield todo, todos.index(todo) }
+  end
 end
 
 before do
@@ -18,11 +56,6 @@ end
 get '/' do
   redirect '/lists'
 end
-
-# GET  /lists       -> view all lists
-# GET  /lists       -> new list form
-# POST /lists       -> create new list
-# GET  /lists/1     -> view a single list
 
 get "/lists" do
   erb :lists, layout: :layout
@@ -57,6 +90,17 @@ post '/lists' do
   end
 end
 
+# Mark all todos as complete
+post '/lists/:list_id/complete_all' do
+  @list = @lists[params[:list_id].to_i]
+  @list[:todos].each do |todo|
+    todo[:done] = true
+  end
+
+  session[:success] = 'All items have been marked complete.'
+  redirect "/lists/#{params[:list_id]}"
+end
+
 # Display a todo list
 get '/lists/:list_id' do
   @list_id = params[:list_id]
@@ -88,12 +132,14 @@ post '/lists/:list_id/todos' do
   end
 end
 
-post '/lists/:list_id/todos/:todo_id/check' do
+# Update the status of a todo
+post '/lists/:list_id/todos/:todo_id' do
   @list_id = params[:list_id]
   @todo_id = params[:todo_id]
   @todo = @lists[@list_id.to_i][:todos][@todo_id.to_i]
 
-  @todo[:done] = (params[:completed] == 'true' ? true : false)
+  @todo[:done] = params[:completed] == 'true'
+  session[:success] = "The todo has been updated."
   redirect "/lists/#{@list_id}"
 end
 
